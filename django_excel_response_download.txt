@@ -1,0 +1,72 @@
+########## Trecho da View em DJANGO #########
+
+@csrf_exempt
+def generate_excel(request):
+    #definindo tipo de conteúdo da requisição
+    response = HttpResponse(content_type='application/ms-excel')
+    #definindo nome do arquivo
+    response['Content-Disposition'] = 'attachment; filename="excel_file.xls"'
+    data = requests.get('http://127.0.0.1:8000/teste').json() #pega response como dict python
+
+    #criando workbook
+    wb = xlwt.Workbook(encoding='utf-8')
+    #adicionando planilha
+    ws = wb.add_sheet("planilha1")
+    #cabeçalho da planilha, primeira linha
+    row_num = 0
+    font_style = xlwt.XFStyle()
+    font_style.font.bold = True
+    columns = data['infos'][0].keys() #pega as chaves do primeiro elemento json e guarda em uma lista
+    column_number = 0 #contador para apontar em qual coluna o dado será inserido.
+    #adiciona os elementos na lista columns na primeira linha da planilha
+    for element in columns:
+        ws.write(row_num, column_number, element, font_style) #parametros: linha, coluna, conteúdo coluna, estilo da fonte
+        column_number = column_number + 1
+    font_style = xlwt.XFStyle()
+    for obj in range(len(data['infos'])):
+        row_num = row_num + 1
+        column_number = 0
+        for element in data['infos'][obj]:
+            ws.write(row_num, column_number, data['infos'][obj][element], font_style)
+            column_number = column_number + 1
+    wb.save(response)
+    return response
+    
+####################
+######### Trecho em Javascript para a  função chamada pelo botão de download ##########
+function download_excel(){
+    let data = 'mydata=foo&excel=bar';
+    let request = new XMLHttpRequest();
+    request.open('POST', '{% url "generate_excel" %}', true);
+    request.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded; charset=UTF-8');
+    request.responseType = 'blob';
+
+    request.onload = function (e) {
+        if (this.status === 200) {
+            let filename = "";
+            let disposition = request.getResponseHeader('Content-Disposition');
+            // check if filename is given
+            if (disposition && disposition.indexOf('attachment') !== -1) {
+                let filenameRegex = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/;
+                let matches = filenameRegex.exec(disposition);
+                if (matches != null && matches[1]) filename = matches[1].replace(/['"]/g, '');
+            }
+            let blob = this.response;
+            if (window.navigator.msSaveOrOpenBlob) {
+                window.navigator.msSaveBlob(blob, filename);
+            }
+            else {
+                let downloadLink = window.document.createElement('a');
+                let contentTypeHeader = request.getResponseHeader("Content-Type");
+                downloadLink.href = window.URL.createObjectURL(new Blob([blob], {type: contentTypeHeader}));
+                downloadLink.download = filename;
+                document.body.appendChild(downloadLink);
+                downloadLink.click();
+                document.body.removeChild(downloadLink);
+            }
+        } else {
+            alert('Download failed.')
+        }
+    };
+    request.send(data);
+};
