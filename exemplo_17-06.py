@@ -29,6 +29,9 @@ for tabela in lista_tabelas:
     while data_inicial < data_final:
         path = f'{tabela}/partition_year={data_inicial.year}/partition_month={data_inicial.month}/partition_day={data_inicial.day}/'
         data = api_call(api_url, bucket_origem, path)
-        save_parquet(data, bucket_destino, f'{tabela}.parquet')
+        if data == 'FAILED':
+            print(f'falhou: {path})
+            continue
+        save_parquet(data, bucket_destino, f'{path}.parquet')
         ##### ADICIONAR AQUI A CLASSE PARTITION_MANAGER PARA CRIAR AS PARTIÇÕES
         data_inicial = data_inicial + timedelta(days=1)
